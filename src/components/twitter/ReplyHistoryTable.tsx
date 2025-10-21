@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, Repeat2, MessageCircle, Eye, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, ExternalLink } from 'lucide-react';
+import { NoRepliesState, LoadingState } from '@/components/ui/empty-state';
 
 interface TweetReply {
   id: number;
@@ -291,23 +292,11 @@ export function ReplyHistoryTable() {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingState message="Hunting for reply history... 🐱🔍" />;
   }
 
   if (data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <MessageCircle className="h-12 w-12 text-secondary mb-3" />
-        <p className="text-sm text-foreground font-medium">No replies yet</p>
-        <p className="text-xs text-secondary mt-1">
-          Your reply history will appear here after you start replying to tweets
-        </p>
-      </div>
-    );
+    return <NoRepliesState />;
   }
 
   return (

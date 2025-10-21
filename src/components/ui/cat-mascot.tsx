@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { catSounds } from '@/lib/cat-sounds';
 
 type CatState = 'sleeping' | 'excited' | 'stretching' | 'grumpy';
 
@@ -18,16 +19,19 @@ export function CatMascot({ state: externalState, onStateChange }: CatMascotProp
   useEffect(() => {
     // Listen for custom events from throughout the app
     const handleJobStart = () => {
+      catSounds.playForEvent('job-start');
       setInternalState('excited');
       setTimeout(() => setInternalState('sleeping'), 3000);
     };
 
     const handleSuccess = () => {
+      catSounds.playForEvent('success');
       setInternalState('stretching');
       setTimeout(() => setInternalState('sleeping'), 4000);
     };
 
     const handleError = () => {
+      catSounds.playForEvent('error');
       setInternalState('grumpy');
       setTimeout(() => setInternalState('sleeping'), 5000);
     };
@@ -117,6 +121,7 @@ export function CatMascot({ state: externalState, onStateChange }: CatMascotProp
         onClick={() => {
           // Fun interaction: click to wake up or change state
           if (currentState === 'sleeping') {
+            catSounds.playForEvent('click');
             setInternalState('excited');
             setTimeout(() => setInternalState('sleeping'), 2000);
           }
