@@ -18,10 +18,10 @@ export default function TwitterPage() {
         {/* Compact Automations List */}
         <div className="space-y-2 animate-slide-up">
           <CompactAutomationRow
-            title="Post Tweets"
-            jobName="ai-tweet-generation"
-            defaultInterval="0 10 * * *"
-            defaultPrompt="You are a thought leader in tech. Create insightful tweets about AI, software development, and innovation. Be authentic and engaging."
+            title="Post Threads"
+            jobName="post-tweets"
+            defaultInterval="0 */4 * * *"
+            defaultPrompt="Create an engaging thread about this news. Write a cohesive narrative that flows naturally. Be insightful, authentic, and thought-provoking. Add your unique perspective and analysis."
           />
 
           <CompactAutomationRow

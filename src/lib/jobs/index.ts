@@ -2,6 +2,7 @@ import { scheduler, ScheduledJob } from '../scheduler';
 import { exampleEvery5Minutes, exampleHourly, exampleDaily } from './example';
 import { generateAndPostTweet, analyzeTrends, generateScheduledContent } from './twitter-ai';
 import { replyToTweetsJob } from './twitter-reply';
+import { postTweetsJob } from './twitter-post';
 import { checkAndReplyToYouTubeComments, trackYouTubeVideo, fetchYouTubeCommentsForAnalysis } from './youtube';
 import { initializeBullMQJobs, isBullMQAvailable } from './bullmq-jobs';
 import { logger } from '../logger';
@@ -67,6 +68,12 @@ const jobs: ScheduledJob[] = [
     schedule: '0 */2 * * *', // Every 2 hours
     task: replyToTweetsJob,
     enabled: false, // Enable this to automatically reply to tweets (WARNING: will post replies to Twitter!)
+  },
+  {
+    name: 'post-tweets',
+    schedule: '0 */4 * * *', // Every 4 hours
+    task: postTweetsJob,
+    enabled: false, // Enable this to automatically post tweets or threads (WARNING: will post to Twitter!)
   },
 
   // YouTube jobs (disabled by default - enable when ready)
@@ -189,6 +196,7 @@ export {
   analyzeTrends,
   generateScheduledContent,
   replyToTweetsJob,
+  postTweetsJob,
   checkAndReplyToYouTubeComments,
   trackYouTubeVideo,
   fetchYouTubeCommentsForAnalysis,

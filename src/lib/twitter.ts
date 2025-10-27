@@ -124,3 +124,50 @@ async function searchTweetsInternal(query: string, maxResults = 10) {
 const searchTweetsWithBreaker = createTwitterCircuitBreaker(searchTweetsInternal);
 export const searchTweets = (query: string, maxResults = 10) =>
   searchTweetsWithBreaker.fire(query, maxResults);
+
+/**
+ * Create a thread (series of tweets) (internal, unprotected)
+ *
+ * Posts multiple tweets where each tweet replies to the previous one (chained).
+ * This is the standard Twitter thread structure.
+ * Uses the built-in tweetThread() method from twitter-api-v2.
+ *
+ * @param tweets - Array of tweet texts to post in sequence
+ * @returns Array of tweet IDs in the same order as input
+ */
+async function createThreadInternal(tweets: string[]): Promise<string[]> {
+  if (!twitterClient) {
+    throw new Error('Twitter client is not initialized. Please set Twitter API credentials.');
+  }
+
+  if (!tweets || tweets.length === 0) {
+    throw new Error('Cannot create thread: no tweets provided');
+  }
+
+  logger.info({ threadLength: tweets.length }, 'Creating tweet thread');
+
+  // Use the built-in tweetThread() method
+  // This posts the first tweet, then each subsequent tweet replies to the previous one
+  const results = await twitterClient.v2.tweetThread(tweets);
+
+  // Extract tweet IDs from results
+  const tweetIds = results.map(result => result.data.id);
+
+  logger.info(
+    { threadLength: tweetIds.length, tweetIds },
+    'Thread created successfully (chained replies)'
+  );
+
+  return tweetIds;
+}
+
+/**
+ * Create a thread (series of tweets) (protected with circuit breaker + rate limiting)
+ *
+ * Note: This will use multiple rate limit tokens (one per tweet in the thread)
+ */
+const createThreadWithBreaker = createTwitterCircuitBreaker(createThreadInternal);
+export const createThread = withRateLimit(
+  (tweets: string[]) => createThreadWithBreaker.fire(tweets),
+  twitterUserRateLimiter
+);

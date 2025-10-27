@@ -66,8 +66,11 @@ export async function replyToTweetsJob(params?: ReplyJobParams) {
     return;
   }
 
-  // Get prompt from database settings or fallback to env var
-  const systemPrompt = (settings.prompt as string | undefined) || process.env.TWITTER_REPLY_SYSTEM_PROMPT;
+  // Get system prompt from database settings or fallback to env var
+  // Support both 'prompt' (legacy) and 'systemPrompt' (new) for backwards compatibility
+  const systemPrompt = (settings.systemPrompt as string | undefined) ||
+                        (settings.prompt as string | undefined) ||
+                        process.env.TWITTER_REPLY_SYSTEM_PROMPT;
 
   try {
     logger.info('🚀 Starting Reply to Tweets workflow...');

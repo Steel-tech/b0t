@@ -170,6 +170,24 @@ export const appSettingsTableSQLite = sqliteTable('app_settings', {
   keyIdx: sqliteIndex('app_settings_key_idx').on(table.key),
 }));
 
+// Posted news articles table for SQLite (tracks articles we've posted threads about)
+export const postedNewsArticlesTableSQLite = sqliteTable('posted_news_articles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  articleUrl: text('article_url').notNull().unique(),
+  articleTitle: text('article_title').notNull(),
+  articleSource: text('article_source'),
+  articleDate: text('article_date'),
+  newsTopic: text('news_topic'),
+  threadTweetIds: text('thread_tweet_ids'), // JSON array of tweet IDs
+  postedAt: integer('posted_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+}, (table) => ({
+  urlIdx: sqliteUniqueIndex('posted_news_articles_url_idx').on(table.articleUrl),
+  topicIdx: sqliteIndex('posted_news_articles_topic_idx').on(table.newsTopic),
+  postedAtIdx: sqliteIndex('posted_news_articles_posted_at_idx').on(table.postedAt),
+}));
+
 // For PostgreSQL (production)
 export const tweetsTablePostgres = pgTable('tweets', {
   id: serial('id').primaryKey(),
@@ -320,6 +338,22 @@ export const appSettingsTablePostgres = pgTable('app_settings', {
   keyIdx: pgIndex('app_settings_key_idx').on(table.key),
 }));
 
+// Posted news articles table for PostgreSQL (tracks articles we've posted threads about)
+export const postedNewsArticlesTablePostgres = pgTable('posted_news_articles', {
+  id: serial('id').primaryKey(),
+  articleUrl: varchar('article_url', { length: 1024 }).notNull().unique(),
+  articleTitle: pgText('article_title').notNull(),
+  articleSource: varchar('article_source', { length: 255 }),
+  articleDate: varchar('article_date', { length: 100 }),
+  newsTopic: varchar('news_topic', { length: 100 }),
+  threadTweetIds: pgText('thread_tweet_ids'), // JSON array of tweet IDs
+  postedAt: timestamp('posted_at').notNull().defaultNow(),
+}, (table) => ({
+  urlIdx: pgUniqueIndex('posted_news_articles_url_idx').on(table.articleUrl),
+  topicIdx: pgIndex('posted_news_articles_topic_idx').on(table.newsTopic),
+  postedAtIdx: pgIndex('posted_news_articles_posted_at_idx').on(table.postedAt),
+}));
+
 // Job logs table for SQLite (tracks job execution history)
 export const jobLogsTableSQLite = sqliteTable('job_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -424,6 +458,7 @@ export const youtubeCommentsTable = useSQLite ? youtubeCommentsTableSQLite : you
 export const oauthStateTable = useSQLite ? oauthStateTableSQLite : oauthStateTablePostgres;
 export const tweetRepliesTable = useSQLite ? tweetRepliesTableSQLite : tweetRepliesTablePostgres;
 export const appSettingsTable = useSQLite ? appSettingsTableSQLite : appSettingsTablePostgres;
+export const postedNewsArticlesTable = useSQLite ? postedNewsArticlesTableSQLite : postedNewsArticlesTablePostgres;
 export const jobLogsTable = useSQLite ? jobLogsTableSQLite : jobLogsTablePostgres;
 export const twitterUsageTable = useSQLite ? twitterUsageTableSQLite : twitterUsageTablePostgres;
 export const apiCredentialsTable = useSQLite ? apiCredentialsTableSQLite : apiCredentialsTablePostgres;

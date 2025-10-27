@@ -7,6 +7,7 @@ import {
   analyzeTrends,
   generateScheduledContent,
   replyToTweetsJob,
+  postTweetsJob,
   checkAndReplyToYouTubeComments,
   fetchYouTubeCommentsForAnalysis,
 } from '@/lib/jobs';
@@ -30,6 +31,7 @@ import { jobLogsTable } from '@/lib/schema';
  * - analyze-trends
  * - ai-tweet-generation
  * - reply-to-tweets
+ * - post-tweets
  * - check-youtube-comments
  * - fetch-youtube-comments-analysis
  */
@@ -42,6 +44,7 @@ const availableJobs: Record<string, (params?: unknown) => Promise<void>> = {
   'analyze-trends': analyzeTrends as (params?: unknown) => Promise<void>,
   'ai-tweet-generation': generateAndPostTweet as (params?: unknown) => Promise<void>,
   'reply-to-tweets': replyToTweetsJob as (params?: unknown) => Promise<void>,
+  'post-tweets': postTweetsJob as (params?: unknown) => Promise<void>,
   'check-youtube-comments': checkAndReplyToYouTubeComments as (params?: unknown) => Promise<void>,
   'fetch-youtube-comments-analysis': fetchYouTubeCommentsForAnalysis as (params?: unknown) => Promise<void>,
 };

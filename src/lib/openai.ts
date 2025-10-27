@@ -22,22 +22,41 @@ export const openai = new OpenAI({
   timeout: 60000, // 60 second timeout
 });
 
-async function generateTweetInternal(prompt: string): Promise<string> {
-  logger.info({ promptLength: prompt.length }, 'Generating tweet with AI');
+async function generateTweetInternal(
+  prompt: string,
+  systemPrompt?: string
+): Promise<string> {
+  logger.info({ promptLength: prompt.length, hasSystemPrompt: !!systemPrompt }, 'Generating tweet with AI');
+
+  const defaultSystemPrompt = `You are a social media expert who creates engaging, concise tweets.
+
+Guidelines:
+- Keep tweets under 280 characters (this is critical!)
+- Be authentic and conversational
+- Use clear, direct language
+- Focus on value and engagement
+- Avoid excessive hashtags or emojis unless specifically requested
+- For threads: Create a cohesive narrative that flows naturally across multiple tweets
+
+If asked to create a thread, write the full content as continuous text - it will be automatically split into tweets.`;
+
+  const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    {
+      role: 'system',
+      content: finalSystemPrompt,
+    },
+    {
+      role: 'user',
+      content: prompt,
+    },
+  ];
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a social media expert who creates engaging, concise tweets. Keep tweets under 280 characters.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    max_tokens: 100,
+    messages,
+    max_tokens: 500, // Increased for thread support
     temperature: 0.8,
   });
 
@@ -48,10 +67,117 @@ async function generateTweetInternal(prompt: string): Promise<string> {
 
 /**
  * Generate tweet (protected with circuit breaker + rate limiting)
+ *
+ * @param prompt - The user's prompt describing what to tweet about
+ * @param systemPrompt - Optional custom system prompt to control tone/style
  */
 const generateTweetWithBreaker = createOpenAICircuitBreaker(generateTweetInternal);
 export const generateTweet = withRateLimit(
-  (prompt: string) => generateTweetWithBreaker.fire(prompt),
+  (prompt: string, systemPrompt?: string) => generateTweetWithBreaker.fire(prompt, systemPrompt),
+  openaiRateLimiter
+);
+
+/**
+ * Generate a thread of tweets (internal, unprotected)
+ *
+ * @param prompt - The user's prompt describing what the thread should be about
+ * @param threadLength - Number of tweets in the thread (2-10)
+ * @param systemPrompt - Optional custom system prompt
+ * @returns Array of tweet strings, each under 280 characters
+ */
+async function generateThreadInternal(
+  prompt: string,
+  threadLength: number = 3,
+  systemPrompt?: string
+): Promise<string[]> {
+  logger.info(
+    { promptLength: prompt.length, threadLength, hasSystemPrompt: !!systemPrompt },
+    'Generating thread with AI'
+  );
+
+  const defaultSystemPrompt = `You are a social media expert who creates engaging Twitter threads.
+
+Guidelines:
+- Generate EXACTLY ${threadLength} tweets that form a cohesive thread
+- Each tweet must be under 280 characters (critical!)
+- Each tweet should be engaging and build on the previous one
+- Create a natural narrative flow across all tweets
+- First tweet should hook the reader
+- Middle tweets should develop the idea with insights/details
+- Last tweet should have a strong conclusion or call-to-action
+- Be authentic, conversational, and thought-provoking
+- Avoid excessive hashtags or emojis unless specifically requested
+
+Return ONLY the tweets, separated by "---" (three dashes on a new line). Example format:
+First tweet text here
+
+---
+
+Second tweet text here
+
+---
+
+Third tweet text here`;
+
+  const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    {
+      role: 'system',
+      content: finalSystemPrompt,
+    },
+    {
+      role: 'user',
+      content: prompt,
+    },
+  ];
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages,
+    max_tokens: 1000, // More tokens for multiple tweets
+    temperature: 0.8,
+  });
+
+  const result = completion.choices[0]?.message?.content || '';
+
+  // Split the result by "---" separator
+  const tweets = result
+    .split(/\n---\n/)
+    .map(tweet => tweet.trim())
+    .filter(tweet => tweet.length > 0 && tweet.length <= 280);
+
+  // Validate we got the right number of tweets
+  if (tweets.length < threadLength) {
+    logger.warn(
+      { expected: threadLength, received: tweets.length },
+      'Generated fewer tweets than requested, padding with available tweets'
+    );
+  }
+
+  // Take exactly threadLength tweets (or all if fewer were generated)
+  const finalTweets = tweets.slice(0, threadLength);
+
+  logger.info(
+    { tweetCount: finalTweets.length, lengths: finalTweets.map(t => t.length) },
+    'Thread generated successfully'
+  );
+
+  return finalTweets;
+}
+
+/**
+ * Generate a thread of tweets (protected with circuit breaker + rate limiting)
+ *
+ * @param prompt - The user's prompt describing what the thread should be about
+ * @param threadLength - Number of tweets in the thread (2-10)
+ * @param systemPrompt - Optional custom system prompt
+ * @returns Array of tweet strings
+ */
+const generateThreadWithBreaker = createOpenAICircuitBreaker(generateThreadInternal);
+export const generateThread = withRateLimit(
+  (prompt: string, threadLength?: number, systemPrompt?: string) =>
+    generateThreadWithBreaker.fire(prompt, threadLength, systemPrompt),
   openaiRateLimiter
 );
 

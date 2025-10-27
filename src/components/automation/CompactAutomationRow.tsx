@@ -9,8 +9,10 @@ import { Play, Loader2, Settings2, Check, X, Filter, History, MessageSquare } fr
 import { SchedulePicker } from './SchedulePicker';
 import { Input } from '@/components/ui/input';
 import { ReplyHistoryTable } from '@/components/twitter/ReplyHistoryTable';
+import { PostedThreadsHistoryTable } from '@/components/twitter/PostedThreadsHistoryTable';
 import { showTwitter403Error, showTwitter429Error, showApiError, showTwitterSuccess } from '@/lib/toast-helpers';
 import { fireSuccessConfetti } from '@/lib/confetti';
+import { NEWS_TOPICS, NEWS_LANGUAGES, NEWS_COUNTRIES } from '@/lib/rapidapi/newsapi/constants';
 
 interface CompactAutomationRowProps {
   title: string;
@@ -28,7 +30,7 @@ export function CompactAutomationRow({
   defaultSearchQuery = '',
 }: CompactAutomationRowProps) {
   const [interval, setInterval] = useState(defaultInterval);
-  const [prompt, setPrompt] = useState(defaultPrompt);
+  const [systemPrompt, setSystemPrompt] = useState(defaultPrompt); // Renamed from 'prompt' to 'systemPrompt' for clarity
   const [enabled, setEnabled] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -46,6 +48,16 @@ export function CompactAutomationRow({
   const [removeLinks, setRemoveLinks] = useState(true);
   const [removeMedia, setRemoveMedia] = useState(true);
 
+  // Thread settings (for post-tweets job)
+  const [isThread, setIsThread] = useState(true); // Default to true
+  const [threadLength, setThreadLength] = useState(3);
+
+  // News research settings (for post-tweets job)
+  const [useNewsResearch, setUseNewsResearch] = useState(true); // Default to true
+  const [newsTopic, setNewsTopic] = useState('technology');
+  const [newsLanguage, setNewsLanguage] = useState('en');
+  const [newsCountry, setNewsCountry] = useState('US');
+
   // Load settings from database on mount
   useEffect(() => {
     const loadSettings = async () => {
@@ -56,7 +68,8 @@ export function CompactAutomationRow({
 
           // Apply loaded settings to state
           if (settings.interval !== undefined) setInterval(settings.interval);
-          if (settings.prompt !== undefined) setPrompt(settings.prompt);
+          if (settings.systemPrompt !== undefined) setSystemPrompt(settings.systemPrompt);
+          if (settings.prompt !== undefined) setSystemPrompt(settings.prompt); // Legacy support
           if (settings.enabled !== undefined) setEnabled(settings.enabled);
           if (settings.searchQuery !== undefined) setSearchQuery(settings.searchQuery);
           if (settings.minimumLikes !== undefined) setMinimumLikes(settings.minimumLikes);
@@ -64,6 +77,12 @@ export function CompactAutomationRow({
           if (settings.searchFromToday !== undefined) setSearchFromToday(settings.searchFromToday);
           if (settings.removeLinks !== undefined) setRemoveLinks(settings.removeLinks);
           if (settings.removeMedia !== undefined) setRemoveMedia(settings.removeMedia);
+          if (settings.isThread !== undefined) setIsThread(settings.isThread);
+          if (settings.threadLength !== undefined) setThreadLength(settings.threadLength);
+          if (settings.useNewsResearch !== undefined) setUseNewsResearch(settings.useNewsResearch);
+          if (settings.newsTopic !== undefined) setNewsTopic(settings.newsTopic);
+          if (settings.newsLanguage !== undefined) setNewsLanguage(settings.newsLanguage);
+          if (settings.newsCountry !== undefined) setNewsCountry(settings.newsCountry);
         }
       } catch (error) {
         console.error('Failed to load automation settings:', error);
@@ -78,7 +97,7 @@ export function CompactAutomationRow({
   // Save settings to database
   const saveSettings = async (overrideSettings?: Partial<{
     interval: string;
-    prompt: string;
+    systemPrompt: string;
     enabled: boolean;
     searchQuery: string;
     minimumLikes: number;
@@ -86,10 +105,16 @@ export function CompactAutomationRow({
     searchFromToday: boolean;
     removeLinks: boolean;
     removeMedia: boolean;
+    isThread: boolean;
+    threadLength: number;
+    useNewsResearch: boolean;
+    newsTopic: string;
+    newsLanguage: string;
+    newsCountry: string;
   }>) => {
     const settings = {
       interval,
-      prompt,
+      systemPrompt,
       enabled,
       searchQuery,
       minimumLikes,
@@ -97,6 +122,12 @@ export function CompactAutomationRow({
       searchFromToday,
       removeLinks,
       removeMedia,
+      isThread,
+      threadLength,
+      useNewsResearch,
+      newsTopic,
+      newsLanguage,
+      newsCountry,
       ...overrideSettings,
     };
 
@@ -276,8 +307,8 @@ export function CompactAutomationRow({
               </DialogDescription>
             </DialogHeader>
             <Textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="Enter your system prompt..."
               className="min-h-[200px] bg-background border-border text-sm resize-none"
             />
@@ -287,18 +318,119 @@ export function CompactAutomationRow({
           </DialogContent>
         </Dialog>
 
-        {/* Filters Button (only for reply-to-tweets) */}
+        {/* Thread Options Button (only for post-tweets) */}
+        {jobName === 'post-tweets' && (
+          <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
+                <Filter className="h-3 w-3" />
+                <span>Options</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md bg-surface border-border" onCloseAutoFocus={() => saveSettings()}>
+              <DialogHeader>
+                <DialogTitle className="text-base font-black">Thread Options</DialogTitle>
+                <DialogDescription className="text-xs text-secondary">
+                  Configure thread length and news research
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">
+                    Max Tweets in Thread
+                  </label>
+                  <Input
+                    type="number"
+                    value={threadLength}
+                    onChange={(e) => setThreadLength(Number(e.target.value))}
+                    min={2}
+                    max={10}
+                    className="h-8 bg-background border-border text-sm"
+                  />
+                  <p className="text-[10px] text-secondary">
+                    Number of tweets to split content into (2-10)
+                  </p>
+                </div>
+
+                <div className="space-y-3 border-t border-border pt-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">
+                      News Topic
+                    </label>
+                    <select
+                      value={newsTopic}
+                      onChange={(e) => setNewsTopic(e.target.value)}
+                      className="h-8 w-full rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      {NEWS_TOPICS.map((topic) => (
+                        <option key={topic.id} value={topic.id}>
+                          {topic.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-secondary">
+                      Fetch trending news from this topic to create threads
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">
+                        Language
+                      </label>
+                      <select
+                        value={newsLanguage}
+                        onChange={(e) => setNewsLanguage(e.target.value)}
+                        className="h-8 w-full rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        {NEWS_LANGUAGES.map((lang) => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">
+                        Country
+                      </label>
+                      <select
+                        value={newsCountry}
+                        onChange={(e) => setNewsCountry(e.target.value)}
+                        className="h-8 w-full rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        {NEWS_COUNTRIES.map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button onClick={() => { setFiltersOpen(false); saveSettings(); }} className="h-8 text-xs">
+                Save Options
+              </Button>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Options Button (only for reply-to-tweets) */}
         {jobName === 'reply-to-tweets' && (
           <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
                 <Filter className="h-3 w-3" />
-                <span>Filters</span>
+                <span>Options</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md bg-surface border-border" onCloseAutoFocus={() => saveSettings()}>
               <DialogHeader>
-                <DialogTitle className="text-base font-black">Search Filters</DialogTitle>
+                <DialogTitle className="text-base font-black">Search Options</DialogTitle>
                 <DialogDescription className="text-xs text-secondary">
                   Configure tweet search criteria for better targeting
                 </DialogDescription>
@@ -389,14 +521,14 @@ export function CompactAutomationRow({
               </div>
 
               <Button onClick={() => { setFiltersOpen(false); saveSettings(); }} className="h-8 text-xs">
-                Save Filters
+                Save Options
               </Button>
             </DialogContent>
           </Dialog>
         )}
 
-        {/* History Button (only for reply-to-tweets) */}
-        {jobName === 'reply-to-tweets' && (
+        {/* History Button (for reply-to-tweets and post-tweets) */}
+        {(jobName === 'reply-to-tweets' || jobName === 'post-tweets') && (
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
@@ -406,13 +538,22 @@ export function CompactAutomationRow({
             </DialogTrigger>
             <DialogContent className="sm:max-w-[90vw] max-h-[85vh] bg-surface border-border overflow-hidden">
               <DialogHeader>
-                <DialogTitle className="text-base font-black">Reply History</DialogTitle>
+                <DialogTitle className="text-base font-black">
+                  {jobName === 'reply-to-tweets' ? 'Reply History' : 'Posted Threads History'}
+                </DialogTitle>
                 <DialogDescription className="text-xs text-secondary">
-                  View all tweets you&apos;ve replied to with engagement metrics
+                  {jobName === 'reply-to-tweets'
+                    ? "View all tweets you've replied to with engagement metrics"
+                    : "View all threads you've posted with news research"
+                  }
                 </DialogDescription>
               </DialogHeader>
               <div className="overflow-y-auto max-h-[calc(85vh-8rem)]">
-                <ReplyHistoryTable />
+                {jobName === 'reply-to-tweets' ? (
+                  <ReplyHistoryTable />
+                ) : (
+                  <PostedThreadsHistoryTable />
+                )}
               </div>
             </DialogContent>
           </Dialog>
