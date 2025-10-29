@@ -50,5 +50,14 @@ export default auth((req) => {
  *    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
  */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, cat-icon.svg (static files)
+     * - public folder files
+     */
+    '/((?!_next/static|_next/image|favicon.ico|cat-icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 };
