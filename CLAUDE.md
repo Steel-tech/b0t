@@ -38,8 +38,16 @@ The system is organized around **composable modules** in `src/modules/`:
 - ✅ Workflow management UI (list, run, configure, import/export)
 - ✅ Trigger system (manual, cron schedules, webhooks)
 - ✅ Execution history tracking and result display
+- ✅ Multi-tenant architecture with organization support
+- ✅ PostgreSQL + Redis development environment
 - 🚧 LLM workflow generation (Claude generates workflows on request)
 - 🚧 Chat-based workflow creation interface
+
+**Multi-Tenancy:**
+- Organizations with role-based access (owner, admin, member, viewer)
+- CASL-based permission system
+- Data isolation for workflows, credentials, and runs
+- See `MULTI_TENANCY_IMPLEMENTATION.md` for details
 
 ## Project Structure
 
@@ -101,6 +109,29 @@ drizzle/                 # Database migrations
 - Single responsibility - one module per service/API
 - No side effects - modules don't maintain state
 
+## Development Setup
+
+**Start development environment (PostgreSQL + Redis + Next.js):**
+
+```bash
+npm run dev:full
+```
+
+This automatically:
+- Starts PostgreSQL & Redis in Docker
+- Waits for services to be ready
+- Starts Next.js development server
+
+**Other commands:**
+```bash
+npm run dev           # Just Next.js (if Docker already running)
+npm run docker:start  # Start PostgreSQL & Redis
+npm run docker:stop   # Stop Docker services
+npm run db:studio     # Visual database editor
+```
+
+See `DEVELOPMENT.md` for full setup guide.
+
 ## Code Quality - Zero Tolerance
 
 After editing ANY file, run:
@@ -113,7 +144,7 @@ npx tsc --noEmit
 Fix ALL errors/warnings before continuing.
 
 If changes require server restart (not hot-reloadable):
-1. Restart: `npm run dev`
+1. Restart: `npm run dev:full` (or `npm run dev` if Docker running)
 2. Read server output/logs
 3. Fix ALL warnings/errors before continuing
 
@@ -158,11 +189,13 @@ Users create workflows by chatting with Claude. Claude generates the workflow JS
 ## Tech Stack
 
 - **Next.js 15** with React 19 and App Router
-- **PostgreSQL** for production, SQLite for local dev
+- **PostgreSQL 16** (Docker for local dev, Railway for production)
+- **Redis 7** (Docker for local dev, Railway for production)
 - **Drizzle ORM** for database
-- **BullMQ + Redis** for job queue (node-cron fallback)
+- **BullMQ** for job queue with Redis
 - **OpenAI SDK** + **Anthropic SDK** for LLM workflow generation
 - **NextAuth v5** for authentication
 - **Tailwind CSS** + shadcn/ui for design system
 - **Opossum** (circuit breakers) + **Bottleneck** (rate limiting)
 - **Pino** for structured logging
+- **Docker Compose** for local development environment
