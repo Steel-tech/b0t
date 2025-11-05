@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useRef, useState } from 'react';
-import ReactMarkdown, { Components } from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, User, Bot, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -132,26 +132,8 @@ export function ChatInterface({
                 )}
               >
                 {(message.role as string) === 'assistant' ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-black/5 dark:prose-pre:bg-white/5 prose-pre:p-4 prose-pre:rounded-lg prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:bg-black/10 dark:prose-code:bg-white/10 prose-code:before:content-[''] prose-code:after:content-['']">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code: ({ inline, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
-                          if (inline) {
-                            return (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            );
-                          }
-                          return (
-                            <code className={cn(className, 'block')} {...props}>
-                              {children}
-                            </code>
-                          );
-                        },
-                      } as Partial<Components>}
-                    >
+                  <div className="prose prose-sm max-w-none text-foreground [&_*]:!text-foreground [&_a]:!text-blue-500 [&_code]:!text-foreground [&_pre]:!bg-gray-200">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {getMessageText(message)}
                     </ReactMarkdown>
                   </div>

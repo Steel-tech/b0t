@@ -73,7 +73,14 @@ Your job is to:
 2. Execute the workflow with appropriate parameters
 3. Present the results in a clear, conversational way
 
-Be friendly, concise, and helpful. If the workflow produces data, explain it clearly to the user.`;
+Be friendly, concise, and helpful. If the workflow produces data, explain it clearly to the user.
+
+IMPORTANT: When formatting tables, always use proper markdown table syntax:
+| Column 1 | Column 2 |
+|----------|----------|
+| Data 1   | Data 2   |
+
+Never use ASCII art tables with + and - characters. Always use the | and - markdown table format.`;
 
     // Convert messages from parts format to standard format and filter
     type MessageLike = { role: string; content?: unknown; parts?: Array<{ type: string; text?: string }> };
