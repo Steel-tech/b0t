@@ -76,6 +76,15 @@ interface WorkflowExport {
       inputs: Record<string, unknown>;
       outputAs?: string;
     }>;
+    outputDisplay?: {
+      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'number';
+      columns?: Array<{
+        key: string;
+        label: string;
+        type: string;
+      }>;
+      content?: string;
+    };
   };
   metadata?: {
     author?: string;
@@ -91,6 +100,75 @@ interface ExecutionResult {
   error?: string;
   errorStep?: string;
   duration?: number;
+}
+
+/**
+ * Check if output matches the configured display type
+ */
+function checkOutputCompatibility(
+  output: unknown,
+  displayConfig?: WorkflowExport['config']['outputDisplay']
+): string[] {
+  const warnings: string[] = [];
+
+  if (!displayConfig) {
+    return warnings; // Auto-detection will be used
+  }
+
+  const outputType = Array.isArray(output) ? 'array' : typeof output;
+  const displayType = displayConfig.type;
+
+  switch (displayType) {
+    case 'table':
+      if (!Array.isArray(output)) {
+        warnings.push(
+          `❌ Output type mismatch: Display expects "table" (array) but workflow output is ${outputType}`
+        );
+        warnings.push(`   💡 Fix: Change the final step to return an array, or change outputDisplay.type to "${outputType === 'object' ? 'json' : 'text'}"`);
+      } else if (output.length > 0 && typeof output[0] !== 'object') {
+        warnings.push(`⚠️  Table display expects array of objects, but got array of ${typeof output[0]}`);
+      }
+      break;
+
+    case 'list':
+      if (!Array.isArray(output)) {
+        warnings.push(`❌ Output type mismatch: Display expects "list" (array) but workflow output is ${outputType}`);
+      }
+      break;
+
+    case 'text':
+    case 'markdown':
+      if (typeof output !== 'string') {
+        warnings.push(`❌ Output type mismatch: Display expects "${displayType}" (string) but workflow output is ${outputType}`);
+        warnings.push(`   💡 Fix: Change the final step to return a string, or change outputDisplay.type to "json"`);
+      }
+      break;
+
+    case 'number':
+      if (typeof output !== 'number') {
+        warnings.push(`❌ Output type mismatch: Display expects "number" but workflow output is ${outputType}`);
+        warnings.push(`   💡 Fix: Change the final step to return a number, or change outputDisplay.type to "json"`);
+      }
+      break;
+
+    case 'image':
+      if (typeof output !== 'string' && !Buffer.isBuffer(output)) {
+        warnings.push(`⚠️  Image display expects a URL string or Buffer`);
+      }
+      break;
+
+    case 'images':
+      if (!Array.isArray(output)) {
+        warnings.push(`❌ Output type mismatch: Display expects "images" (array) but workflow output is ${outputType}`);
+      }
+      break;
+
+    case 'json':
+      // JSON accepts any type
+      break;
+  }
+
+  return warnings;
 }
 
 /**
@@ -268,6 +346,14 @@ async function testWorkflowFromJSON(
   if (result.success) {
     console.log('✅ Workflow executed successfully!');
     console.log(`⏱️  Duration: ${duration}ms`);
+
+    // Check output compatibility with display config
+    const compatibilityWarnings = checkOutputCompatibility(result.output, workflow.config.outputDisplay);
+    if (compatibilityWarnings.length > 0) {
+      console.log('\n⚠️  Output Display Compatibility:\n');
+      compatibilityWarnings.forEach(warning => console.log(warning));
+    }
+
     console.log('\n📊 Output:');
     console.log(JSON.stringify(result.output, null, 2));
     console.log('\n🧹 Test workflow automatically cleaned up');

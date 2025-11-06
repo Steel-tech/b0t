@@ -26,6 +26,15 @@ interface WorkflowExport {
       inputs: Record<string, unknown>;
       outputAs?: string;
     }>;
+    outputDisplay?: {
+      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'number';
+      columns?: Array<{
+        key: string;
+        label: string;
+        type: string;
+      }>;
+      content?: string;
+    };
   };
   metadata?: {
     author?: string;
@@ -89,6 +98,90 @@ function validateVariableReferences(workflow: WorkflowExport): string[] {
   return errors;
 }
 
+function validateOutputDisplay(workflow: WorkflowExport): string[] {
+  const warnings: string[] = [];
+  const { config } = workflow;
+
+  if (!config.outputDisplay) {
+    return warnings; // No output display configured - auto-detection will be used
+  }
+
+  const displayType = config.outputDisplay.type;
+  const lastStep = config.steps[config.steps.length - 1];
+
+  if (!lastStep) {
+    warnings.push('No steps defined in workflow');
+    return warnings;
+  }
+
+  // Validation based on display type
+  switch (displayType) {
+    case 'table':
+      warnings.push(
+        `⚠️  Output display type is "table" - ensure final step (${lastStep.id}) returns an array of objects`
+      );
+      if (!config.outputDisplay.columns || config.outputDisplay.columns.length === 0) {
+        warnings.push('⚠️  Table display should define columns for proper formatting');
+      }
+      break;
+
+    case 'list':
+      warnings.push(
+        `⚠️  Output display type is "list" - ensure final step (${lastStep.id}) returns an array`
+      );
+      break;
+
+    case 'text':
+    case 'markdown':
+      warnings.push(
+        `⚠️  Output display type is "${displayType}" - ensure final step (${lastStep.id}) returns a string`
+      );
+      break;
+
+    case 'number':
+      warnings.push(
+        `⚠️  Output display type is "number" - ensure final step (${lastStep.id}) returns a number`
+      );
+      break;
+
+    case 'image':
+      warnings.push(
+        `⚠️  Output display type is "image" - ensure final step (${lastStep.id}) returns an image URL or buffer`
+      );
+      break;
+
+    case 'images':
+      warnings.push(
+        `⚠️  Output display type is "images" - ensure final step (${lastStep.id}) returns an array of image URLs or buffers`
+      );
+      break;
+
+    case 'json':
+      // JSON type accepts any output
+      break;
+  }
+
+  // Check for common mistakes
+  if (displayType === 'table') {
+    // Check if last step might return a single value instead of array
+    const commonSingleValueModules = [
+      'average', 'sum', 'count', 'min', 'max',
+      'hashSHA256', 'generateUUID', 'now', 'toISO'
+    ];
+
+    if (commonSingleValueModules.some(mod => lastStep.module.includes(mod))) {
+      warnings.push(
+        `❌ LIKELY ERROR: Step "${lastStep.id}" uses "${lastStep.module}" which typically returns a single value, but output display is set to "table" (requires array)`
+      );
+      warnings.push(
+        `   💡 Solution: Either change the final step to return an array, or change outputDisplay.type to "text" or "json"`
+      );
+    }
+  }
+
+  return warnings;
+}
+
 async function validateWorkflow(workflowJson: string): Promise<void> {
   try {
     console.log('🔍 Validating workflow...\n');
@@ -139,6 +232,29 @@ async function validateWorkflow(workflowJson: string): Promise<void> {
       console.log('\n💡 Make sure variables are declared with "outputAs" before being used');
     } else {
       console.log('✅ All variable references are valid');
+    }
+
+    // Validate output display configuration
+    console.log('\n🔍 Checking output display configuration...');
+    const displayWarnings = validateOutputDisplay(workflow);
+    if (displayWarnings.length > 0) {
+      const hasErrors = displayWarnings.some(w => w.includes('❌'));
+      if (hasErrors) {
+        console.error('\n❌ Output display configuration errors:\n');
+      } else {
+        console.log('\n⚠️  Output display reminders:\n');
+      }
+      displayWarnings.forEach((warning) => {
+        console.log(`   ${warning}`);
+      });
+      console.log('\n💡 Output display type guide:');
+      console.log('   • table  → Array of objects with columns defined');
+      console.log('   • list   → Array of primitives (strings/numbers)');
+      console.log('   • text   → String value');
+      console.log('   • number → Numeric value');
+      console.log('   • json   → Any value (auto-formatted)');
+    } else {
+      console.log('✅ Output display configuration looks good (or will use auto-detection)');
     }
 
     // Summary

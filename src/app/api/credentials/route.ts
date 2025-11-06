@@ -73,15 +73,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { platform, name, value, type, metadata } = validation.data;
+    const { platform, name, value, fields, type, metadata, organizationId } = validation.data;
 
-    const result = await storeCredential(session.user.id, {
-      platform,
-      name,
-      value,
-      type,
-      metadata,
-    });
+    const result = await storeCredential(
+      session.user.id,
+      {
+        platform,
+        name,
+        value,
+        fields,
+        type,
+        metadata,
+      },
+      organizationId
+    );
 
     logger.info(
       { userId: session.user.id, platform, credentialId: result.id },

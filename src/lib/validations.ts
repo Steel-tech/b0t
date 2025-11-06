@@ -83,7 +83,7 @@ export type Prompt = z.infer<typeof promptSchema>;
 export type AutomationConfig = z.infer<typeof automationConfigSchema>;
 
 // Credential validation schemas
-export const credentialTypeSchema = z.enum(['api_key', 'token', 'secret', 'connection_string']);
+export const credentialTypeSchema = z.enum(['api_key', 'token', 'secret', 'connection_string', 'multi_field']);
 
 // Platform-specific credential validators
 // OpenAI keys can be: sk-... (legacy), sk-proj-... (project), sk-org-... (organization)
@@ -156,21 +156,35 @@ export function validateCredentialValue(platform: string, value: string, type: s
   return { success: true };
 }
 
-// Credential creation schema
+// Credential creation schema (supports both single and multi-field)
 export const createCredentialSchema = z.object({
   platform: z.string().min(1, 'Platform is required').max(100, 'Platform name too long'),
   name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
-  value: z.string().min(1, 'Credential value is required'),
+  value: z.string().optional(), // For single-field credentials
+  fields: z.record(z.string(), z.string()).optional(), // For multi-field credentials
   type: credentialTypeSchema,
   metadata: z.record(z.string(), z.unknown()).optional(),
+  organizationId: z.string().optional(),
 }).superRefine((data, ctx) => {
-  const validation = validateCredentialValue(data.platform, data.value, data.type);
-  if (!validation.success) {
+  // Ensure either value or fields is provided
+  if (!data.value && (!data.fields || Object.keys(data.fields).length === 0)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: validation.error || 'Invalid credential format',
+      message: 'Either value or fields must be provided',
       path: ['value'],
     });
+  }
+
+  // If value is provided, validate it
+  if (data.value) {
+    const validation = validateCredentialValue(data.platform, data.value, data.type);
+    if (!validation.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: validation.error || 'Invalid credential format',
+        path: ['value'],
+      });
+    }
   }
 });
 

@@ -15,8 +15,9 @@ import { logger } from '@/lib/logger';
 export interface CredentialInput {
   platform: string; // openai, anthropic, stripe, slack, custom
   name: string; // User-friendly name
-  value: string; // The actual credential (API key, token, etc.)
-  type: 'api_key' | 'token' | 'secret' | 'connection_string';
+  value?: string; // For single-field credentials (backward compatible)
+  fields?: Record<string, string>; // For multi-field credentials
+  type: 'api_key' | 'token' | 'secret' | 'connection_string' | 'multi_field';
   metadata?: Record<string, unknown>; // Optional extra info
 }
 
@@ -25,7 +26,8 @@ export interface CredentialInput {
  */
 export async function storeCredential(
   userId: string,
-  input: CredentialInput
+  input: CredentialInput,
+  organizationId?: string
 ): Promise<{ id: string }> {
   logger.info({ userId, platform: input.platform, type: input.type }, 'Storing credential');
 
@@ -34,16 +36,34 @@ export async function storeCredential(
   }
 
   const id = randomUUID();
-  const encryptedValue = encrypt(input.value);
+  let encryptedValue = '';
+  let metadata = input.metadata || {};
+
+  // Handle single-field credential (backward compatible)
+  if (input.value) {
+    encryptedValue = encrypt(input.value);
+  }
+
+  // Handle multi-field credential (new approach)
+  if (input.fields && Object.keys(input.fields).length > 0) {
+    metadata = {
+      ...metadata,
+      fields: Object.entries(input.fields).reduce((acc, [key, value]) => {
+        acc[key] = encrypt(value);
+        return acc;
+      }, {} as Record<string, string>)
+    };
+  }
 
   await postgresDb.insert(userCredentialsTablePostgres).values({
     id,
     userId,
+    organizationId: organizationId || undefined,
     platform: input.platform.toLowerCase(),
     name: input.name,
     encryptedValue,
     type: input.type,
-    metadata: input.metadata || null,
+    metadata: metadata as Record<string, unknown>,
   });
 
   logger.info({ id, platform: input.platform }, 'Credential stored successfully');
@@ -190,4 +210,106 @@ export async function updateCredential(
     );
 
   logger.info({ userId, credentialId }, 'Credential updated');
+}
+
+/**
+ * Get credential fields (supports both single and multi-field credentials)
+ * Returns a Record with field names as keys and decrypted values
+ */
+export async function getCredentialFields(
+  userId: string,
+  platform: string,
+  organizationId?: string
+): Promise<Record<string, string> | null> {
+  logger.info({ userId, platform, organizationId }, 'Retrieving credential fields');
+
+  if (!postgresDb) {
+    throw new Error('Database not initialized');
+  }
+
+  // Build where clause
+  const whereConditions = [
+    eq(userCredentialsTablePostgres.userId, userId),
+    eq(userCredentialsTablePostgres.platform, platform.toLowerCase())
+  ];
+
+  if (organizationId) {
+    whereConditions.push(eq(userCredentialsTablePostgres.organizationId, organizationId));
+  } else {
+    whereConditions.push(isNull(userCredentialsTablePostgres.organizationId));
+  }
+
+  const credentials = await postgresDb
+    .select()
+    .from(userCredentialsTablePostgres)
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (credentials.length === 0) {
+    logger.warn({ userId, platform }, 'Credential not found');
+    return null;
+  }
+
+  const credential = credentials[0];
+
+  // Update last used timestamp
+  await postgresDb
+    .update(userCredentialsTablePostgres)
+    .set({ lastUsed: new Date() })
+    .where(eq(userCredentialsTablePostgres.id, credential.id));
+
+  // Check if multi-field credential
+  if (credential.metadata && typeof credential.metadata === 'object' && 'fields' in credential.metadata) {
+    const fields = credential.metadata.fields as Record<string, string>;
+    const decryptedFields: Record<string, string> = {};
+
+    for (const [key, encryptedValue] of Object.entries(fields)) {
+      decryptedFields[key] = decrypt(encryptedValue);
+    }
+
+    logger.info({ userId, platform, fieldCount: Object.keys(decryptedFields).length }, 'Multi-field credential retrieved');
+    return decryptedFields;
+  }
+
+  // Fallback to single-field credential (backward compatible)
+  if (credential.encryptedValue) {
+    const decryptedValue = decrypt(credential.encryptedValue);
+    logger.info({ userId, platform }, 'Single-field credential retrieved');
+    return { value: decryptedValue };
+  }
+
+  logger.warn({ userId, platform }, 'Credential found but has no value');
+  return null;
+}
+
+/**
+ * Check if a credential exists for a platform
+ */
+export async function hasCredential(
+  userId: string,
+  platform: string,
+  organizationId?: string
+): Promise<boolean> {
+  if (!postgresDb) {
+    throw new Error('Database not initialized');
+  }
+
+  const whereConditions = [
+    eq(userCredentialsTablePostgres.userId, userId),
+    eq(userCredentialsTablePostgres.platform, platform.toLowerCase())
+  ];
+
+  if (organizationId) {
+    whereConditions.push(eq(userCredentialsTablePostgres.organizationId, organizationId));
+  } else {
+    whereConditions.push(isNull(userCredentialsTablePostgres.organizationId));
+  }
+
+  const credentials = await postgresDb
+    .select({ id: userCredentialsTablePostgres.id })
+    .from(userCredentialsTablePostgres)
+    .where(and(...whereConditions))
+    .limit(1);
+
+  return credentials.length > 0;
 }

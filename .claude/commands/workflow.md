@@ -168,12 +168,28 @@ For chat-based workflows, use this EXACT structure:
 
 **Step 3: Validate**
 - [ ] `npx tsx scripts/validate-workflow.ts /tmp/workflow.json`
+- Checks structure, module paths, variable references, output display compatibility
 
-**Step 4: Test**
+**Step 4: Dry Run (Review Structure)**
+- [ ] `npx tsx scripts/test-workflow.ts /tmp/workflow.json --dry-run`
+- **Why this matters:**
+  - See all steps laid out with inputs/outputs before execution
+  - Catch logical issues in variable flow visually
+  - No API costs if there's a problem
+  - **Especially important for:**
+    - Workflows with 15+ steps
+    - Workflows with expensive API calls
+    - Complex variable dependencies
+    - First-time testing of new patterns
+
+**Step 5: Test Execute**
 - [ ] `npx tsx scripts/test-workflow.ts /tmp/workflow.json`
+- Executes the workflow and shows actual results
+- Test script will analyze errors and categorize them (Claude can fix / User action / Both)
 
-**Step 5: Import**
+**Step 6: Import**
 - [ ] `npx tsx scripts/import-workflow.ts /tmp/workflow.json`
+- Makes workflow permanently available in the UI
 
 ## Error Handling
 
@@ -199,6 +215,145 @@ For chat-based workflows, use this EXACT structure:
 **Dedup:** `utilities.deduplication.{filterProcessed,hasProcessed}`
 **Scoring:** `utilities.scoring.{rankByWeightedScore,selectTop}`
 **Arrays:** `utilities.array-utils.{pluck,sortBy,first,sum}`
+
+## Function Parameter Conventions ⚠️ IMPORTANT
+
+**Some functions take a SINGLE params object, others take individual arguments:**
+
+```json
+// ✅ CORRECT - Single params object (newer utility modules)
+{
+  "module": "utilities.scoring.rankByField",
+  "inputs": {
+    "params": {
+      "items": "{{data}}",
+      "field": "score",
+      "order": "desc"
+    }
+  }
+}
+
+// ❌ WRONG - Individual parameters
+{
+  "module": "utilities.scoring.rankByField",
+  "inputs": {
+    "items": "{{data}}",
+    "field": "score",
+    "order": "desc"
+  }
+}
+```
+
+**How to tell which format to use:**
+- Module search shows: `rankByField({ items, field, order })` → Single params object
+- Module search shows: `pluck(array, key)` → Individual arguments
+
+**Modules that require params wrapper:**
+- `utilities.scoring.*` (rankByField, selectTop, rankByWeightedScore, etc.)
+- `utilities.deduplication.*` (filterProcessed, filterProcessedItems, hasProcessed)
+- `utilities.validation.*`
+- `data.database.*` (query, insert, update, exists)
+
+**Modules that use individual args:**
+- `utilities.array-utils.*` (most functions: pluck, sortBy, first, etc.)
+- `utilities.string-utils.*` (toSlug, truncate, etc.)
+- `utilities.datetime.*` (now, formatDate, addDays, etc.)
+- `utilities.csv.*` (parseCsv, stringifyCsv, etc.)
+
+**When in doubt:** Check the module search output or validate-workflow script will catch errors!
+
+## Output Display Configuration ⚠️ IMPORTANT
+
+**The LAST step's output MUST match the display type!**
+
+### Display Type Matching
+
+| Display Type | Required Output | Example |
+|-------------|----------------|---------|
+| `table` | Array of objects | `[{name: "John", age: 30}, ...]` |
+| `list` | Array of primitives | `["item1", "item2"]` |
+| `text` | String | `"Hello World"` |
+| `markdown` | String (markdown) | `"# Title\n\nContent"` |
+| `number` | Number | `42` |
+| `json` | Any type | `{any: "data"}` |
+| `image` | URL or Buffer | `"https://..."` |
+| `images` | Array of URLs/Buffers | `["url1", "url2"]` |
+
+### Common Mistakes
+
+```json
+// ❌ WRONG - Last step returns number but display expects table
+{
+  "config": {
+    "steps": [
+      // ... other steps ...
+      {
+        "id": "calculate-average",
+        "module": "utilities.array-utils.average",
+        "inputs": { "array": "{{scores}}" },
+        "outputAs": "avgScore"
+      }
+    ],
+    "outputDisplay": {
+      "type": "table"  // ❌ ERROR! average() returns a number, not array
+    }
+  }
+}
+
+// ✅ CORRECT - Fix 1: Change display type
+{
+  "outputDisplay": {
+    "type": "json"  // or "number" or "text"
+  }
+}
+
+// ✅ CORRECT - Fix 2: Change last step to return array
+{
+  "config": {
+    "steps": [
+      // ... calculation steps ...
+      {
+        "id": "return-all-data",
+        "module": "utilities.scoring.rankByField",
+        "inputs": {
+          "params": {
+            "items": "{{dataArray}}",
+            "field": "score",
+            "order": "desc"
+          }
+        },
+        "outputAs": "results"
+      }
+    ],
+    "outputDisplay": {
+      "type": "table",  // ✅ Works! rankByField returns array
+      "columns": [...]
+    }
+  }
+}
+```
+
+**Validation will warn you:**
+- `validate-workflow.ts` checks if last step likely returns wrong type
+- `test-workflow.ts` checks actual output matches display config
+- Both scripts provide specific fix suggestions
+
+**Functions that return single values (not arrays):**
+- `average`, `sum`, `count`, `min`, `max` (array-utils)
+- `hashSHA256`, `generateUUID` (encryption)
+- `now`, `toISO`, `formatDate` (datetime)
+- `concat`, `toSlug`, `truncate` (string-utils)
+
+→ Use `type: "json"`, `"text"`, or `"number"` for these!
+
+**Functions that return arrays:**
+- `pluck`, `sortBy`, `filter`, `unique` (array-utils)
+- `rankByField`, `selectTop` (scoring)
+- `filterProcessed` (deduplication)
+- `parseCsv` (csv)
+- Most data fetch functions (reddit posts, tweets, etc.)
+
+→ Use `type: "table"` or `"list"` for these!
 
 ## After Import
 

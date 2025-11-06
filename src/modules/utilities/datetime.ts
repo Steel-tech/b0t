@@ -15,12 +15,12 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  addDays,
-  addHours,
-  addMinutes,
-  subDays,
-  subHours,
-  subMinutes,
+  addDays as dateFnsAddDays,
+  addHours as dateFnsAddHours,
+  addMinutes as dateFnsAddMinutes,
+  subDays as dateFnsSubDays,
+  subHours as dateFnsSubHours,
+  subMinutes as dateFnsSubMinutes,
   formatDistance,
   formatRelative,
   isValid,
@@ -168,14 +168,46 @@ export function getEndOfMonth(date: Date): Date {
 }
 
 /**
- * Add days to date
+ * Add days to a date
  */
-export { addDays, addHours, addMinutes };
+export function addDays(date: Date, days: number): Date {
+  return dateFnsAddDays(date, days);
+}
 
 /**
- * Subtract days from date
+ * Add hours to a date
  */
-export { subDays, subHours, subMinutes };
+export function addHours(date: Date, hours: number): Date {
+  return dateFnsAddHours(date, hours);
+}
+
+/**
+ * Add minutes to a date
+ */
+export function addMinutes(date: Date, minutes: number): Date {
+  return dateFnsAddMinutes(date, minutes);
+}
+
+/**
+ * Subtract days from a date
+ */
+export function subDays(date: Date, days: number): Date {
+  return dateFnsSubDays(date, days);
+}
+
+/**
+ * Subtract hours from a date
+ */
+export function subHours(date: Date, hours: number): Date {
+  return dateFnsSubHours(date, hours);
+}
+
+/**
+ * Subtract minutes from a date
+ */
+export function subMinutes(date: Date, minutes: number): Date {
+  return dateFnsSubMinutes(date, minutes);
+}
 
 /**
  * Format distance between dates in words (e.g., "3 days ago")
