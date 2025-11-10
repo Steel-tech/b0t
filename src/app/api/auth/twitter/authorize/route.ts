@@ -28,19 +28,44 @@ export async function GET() {
       );
     }
 
-    // Check if Twitter OAuth 2.0 credentials are configured
-    if (!process.env.TWITTER_CLIENT_ID || !process.env.TWITTER_CLIENT_SECRET) {
-      logger.error('Twitter OAuth 2.0 credentials not configured');
+    // Try to get Twitter OAuth 2.0 app credentials from database first, fallback to env vars
+    let clientId = process.env.TWITTER_CLIENT_ID;
+    let clientSecret = process.env.TWITTER_CLIENT_SECRET;
+
+    // If not in env, try to get from database (user_credentials table)
+    if (!clientId || !clientSecret) {
+      try {
+        const { getCredentialFields } = await import('@/lib/workflows/credentials');
+        const fields = await getCredentialFields(session.user.id, 'twitter_oauth2_app');
+
+        if (fields) {
+          clientId = fields.client_id;
+          clientSecret = fields.client_secret;
+        }
+      } catch (error) {
+        logger.error(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+          },
+          'Failed to fetch Twitter OAuth app credentials from database'
+        );
+      }
+    }
+
+    // Check if credentials are available
+    if (!clientId || !clientSecret) {
+      logger.error('Twitter OAuth 2.0 app credentials not configured');
       return NextResponse.json(
-        { error: 'Twitter OAuth is not configured. Please contact administrator.' },
+        { error: 'Twitter OAuth is not configured. Please add Twitter OAuth app credentials (Client ID and Secret) in the credentials page.' },
         { status: 500 }
       );
     }
 
     // Initialize Twitter API client with OAuth 2.0 credentials
     const client = new TwitterApi({
-      clientId: process.env.TWITTER_CLIENT_ID,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      clientId,
+      clientSecret,
     });
 
     // Generate callback URL

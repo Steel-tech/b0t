@@ -84,8 +84,8 @@ export async function GET(
           oauthAccounts[account.provider] = [];
         }
         if (account.access_token) {
-          // Check if expired
-          const isExpired = account.expires_at ? new Date(account.expires_at).getTime() < Date.now() : false;
+          // Check if expired (expires_at is Unix timestamp in seconds, Date.now() is in milliseconds)
+          const isExpired = account.expires_at ? (account.expires_at * 1000) < Date.now() : false;
           oauthAccounts[account.provider].push({
             id: account.id,
             accountName: account.account_name || account.providerAccountId,
@@ -129,11 +129,20 @@ export async function GET(
     const platformAliases: Record<string, string[]> = {
       'youtube': ['youtube_apikey', 'youtube'],
       'twitter': ['twitter_oauth2', 'twitter'],
+      'twitter-oauth': ['twitter', 'twitter_oauth2'], // For social.twitter-oauth.* module paths
       'github': ['github_oauth', 'github'],
       'google-sheets': ['googlesheets', 'googlesheets_oauth'],
       'googlesheets': ['googlesheets', 'googlesheets_oauth'],
       'google-calendar': ['googlecalendar', 'googlecalendar_serviceaccount'],
       'googlecalendar': ['googlecalendar', 'googlecalendar_serviceaccount'],
+      'google-drive': ['googledrive', 'googledrive_oauth'], // For data.google-drive.* module paths
+      'googledrive': ['googledrive', 'googledrive_oauth'],
+      'google-analytics': ['googleanalytics'], // For data.google-analytics.* module paths
+      'googleanalytics': ['googleanalytics'],
+      'microsoft-teams': ['microsoftteams'], // For communication.microsoft-teams.* module paths
+      'microsoftteams': ['microsoftteams'],
+      'amazon-sp': ['amazonsp'], // For ecommerce.amazon-sp.* module paths
+      'amazonsp': ['amazonsp'],
       'notion': ['notion_oauth', 'notion'],
       'airtable': ['airtable_oauth', 'airtable'],
       'hubspot': ['hubspot_oauth', 'hubspot'],
@@ -177,6 +186,18 @@ export async function GET(
         connected = accounts.length > 0 || keys.length > 0;
       }
 
+      // Map module platform names to OAuth endpoint names
+      // E.g., 'twitter-oauth' -> 'twitter' for /api/auth/twitter/authorize
+      const oauthPlatformMap: Record<string, string> = {
+        'twitter-oauth': 'twitter',
+        'google-sheets': 'googlesheets',
+        'google-calendar': 'googlecalendar',
+        'google-drive': 'googledrive',
+        'google-analytics': 'googleanalytics',
+        'microsoft-teams': 'microsoftteams',
+        'amazon-sp': 'amazonsp',
+      };
+
       return {
         platform: cred.platform,
         type: cred.type,
@@ -186,6 +207,7 @@ export async function GET(
         accounts,
         keys,
         preferredType: cred.preferredType,
+        oauthPlatform: oauthPlatformMap[cred.platform] || cred.platform, // Map to actual OAuth endpoint
       };
     });
 

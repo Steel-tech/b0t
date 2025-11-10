@@ -113,6 +113,7 @@ export async function executeWorkflowWithProgress(
           id: userId,
           ...userCredentials,
         },
+        credential: userCredentials, // Add credential namespace for {{credential.platform}} syntax
         trigger: triggerData || {},
         ...userCredentials,
       },
@@ -613,7 +614,7 @@ async function loadUserCredentials(userId: string): Promise<Record<string, strin
 
     const platformAliases: Record<string, string[]> = {
       'youtube': ['youtube_apikey', 'youtube_api_key', 'youtube'],
-      'twitter': ['twitter_oauth2', 'twitter'],
+      'twitter': ['twitter_oauth2', 'twitter_oauth', 'twitter'],
       'github': ['github_oauth', 'github'],
       'google-sheets': ['googlesheets', 'googlesheets_oauth'],
       'googlesheets': ['googlesheets', 'googlesheets_oauth'],
@@ -626,6 +627,9 @@ async function loadUserCredentials(userId: string): Promise<Record<string, strin
       'slack': ['slack_oauth', 'slack'],
       'discord': ['discord_oauth', 'discord'],
       'stripe': ['stripe_connect', 'stripe'],
+      'rapidapi': ['rapidapi_api_key', 'rapidapi'],
+      'openai': ['openai_api_key', 'openai'],
+      'anthropic': ['anthropic_api_key', 'anthropic'],
     };
 
     for (const [platformName, credentialIds] of Object.entries(platformAliases)) {

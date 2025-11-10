@@ -2,9 +2,20 @@
 
 Common workflow patterns to reference when generating new workflows.
 
+## Quick Reference
+
+1. **Social Media Monitor** - Basic scheduled workflow (fetch → send)
+2. **AI Chatbot** - Chat trigger with AI SDK responses
+3. **AI Content Processing** - Using AI `.content` property correctly
+4. **Table Generation** - Building structured data with `zipToObjects`
+5. **Database Deduplication** - Complete workflow with dynamic tables (⭐ most comprehensive)
+6. **JavaScript Transform** - Custom filtering/mapping with JavaScript
+
 ## 1. Social Media Monitor → Notification
 
 **Pattern:** Fetch social content → Filter/process → Send notification
+
+**What this shows:** Basic two-step workflow with scheduled trigger. Fetches data from one service, sends to another.
 
 ```json
 {
@@ -54,6 +65,8 @@ Common workflow patterns to reference when generating new workflows.
 
 **Pattern:** User message → AI processing → Response
 
+**What this shows:** Chat trigger with AI SDK. System message defines bot personality, user message from trigger input.
+
 ```json
 {
   "version": "1.0",
@@ -100,6 +113,8 @@ Common workflow patterns to reference when generating new workflows.
 ## 3. AI Content Generation with String Processing
 
 **Pattern:** Generate AI text → Process/format → Use in downstream steps
+
+**What this shows:** Using AI SDK `.content` property correctly. AI modules return objects, not strings—must access `.content` for text.
 
 **CRITICAL: AI SDK returns objects with `.content` property, not plain strings!**
 
@@ -168,6 +183,8 @@ Common workflow patterns to reference when generating new workflows.
 ## 4. Table Generation with zipToObjects
 
 **Pattern:** Generate data → Build table with multiple columns
+
+**What this shows:** Creating structured table data from arrays. `zipToObjects` combines parallel arrays into objects. Table output display with column configuration.
 
 **CRITICAL: ALL fields in zipToObjects must be arrays of equal length!**
 
@@ -248,6 +265,232 @@ Common workflow patterns to reference when generating new workflows.
 - Repeat the value for each row: `["{{text}}", "{{text}}", ...]` ✅
 - AI content needs `.content`: `["{{ai.content}}", "{{ai.content}}"]` ✅
 - outputDisplay defines how table is rendered
+
+---
+
+## 5. Dynamic Database Operations (Deduplication)
+
+**Pattern:** Query existing records → Filter duplicates → Process → Save results
+
+**What this shows:** Complete deduplication workflow using dynamic database tables. Query existing records, filter out duplicates with JavaScript, process new items, save to database. Tables auto-create from data structure—no migrations needed.
+
+**CRITICAL: Tables are created dynamically from data structure!**
+
+```json
+{
+  "version": "1.0",
+  "name": "Reply to Tweets (Deduplication)",
+  "description": "Search tweets, reply with AI, track in database to avoid duplicates",
+  "trigger": {
+    "type": "cron",
+    "config": {
+      "schedule": "0 */2 * * *",
+      "timezone": "America/New_York"
+    }
+  },
+  "config": {
+    "steps": [
+      {
+        "id": "search-tweets",
+        "module": "external-apis.rapidapi-twitter.searchTwitter",
+        "inputs": {
+          "params": {
+            "query": "AI tools",
+            "count": 20
+          }
+        },
+        "outputAs": "searchResults"
+        // Step 1: Search for tweets matching query
+      },
+      {
+        "id": "extract-ids",
+        "module": "utilities.javascript.execute",
+        "inputs": {
+          "options": {
+            "code": "return searchResults.results.map(t => t.tweet_id);",
+            "context": {
+              "searchResults": "{{searchResults}}"
+            }
+          }
+        },
+        "outputAs": "tweetIds"
+        // Step 2: Extract just the IDs from search results
+      },
+      {
+        "id": "check-already-replied",
+        "module": "data.drizzle-utils.queryWhereIn",
+        "inputs": {
+          "params": {
+            "tableName": "tweet_replies",
+            "column": "original_tweet_id",
+            "values": "{{tweetIds}}",
+            "selectColumn": "original_tweet_id"
+          }
+        },
+        "outputAs": "repliedIds"
+        // Step 3: Check which IDs are already in database (returns [] if table doesn't exist)
+      },
+      {
+        "id": "filter-new-tweets",
+        "module": "utilities.javascript.execute",
+        "inputs": {
+          "options": {
+            "code": "return searchResults.results.filter(t => !repliedIds.includes(t.tweet_id));",
+            "context": {
+              "searchResults": "{{searchResults}}",
+              "repliedIds": "{{repliedIds}}"
+            }
+          }
+        },
+        "outputAs": "newTweets"
+        // Step 4: Filter out tweets we've already replied to
+      },
+      {
+        "id": "select-first-tweet",
+        "module": "utilities.javascript.execute",
+        "inputs": {
+          "options": {
+            "code": "return newTweets[0] || null;",
+            "context": {
+              "newTweets": "{{newTweets}}"
+            }
+          }
+        },
+        "outputAs": "selectedTweet"
+        // Step 5: Select first new tweet to process (workflows don't loop)
+      },
+      {
+        "id": "generate-reply",
+        "module": "ai.ai-sdk.generateText",
+        "inputs": {
+          "options": {
+            "prompt": "Reply to: {{selectedTweet.text}}",
+            "model": "gpt-4o-mini",
+            "provider": "openai",
+            "maxTokens": 280
+          }
+        },
+        "outputAs": "aiReply"
+        // Step 6: Generate AI reply to the tweet
+      },
+      {
+        "id": "post-reply",
+        "module": "social.twitter-oauth.replyToTweet",
+        "inputs": {
+          "originalTweetId": "{{selectedTweet.tweet_id}}",
+          "text": "{{aiReply.content}}"
+        },
+        "outputAs": "tweetResponse"
+        // Step 7: Post the reply to Twitter (note .content for AI output)
+      },
+      {
+        "id": "save-to-database",
+        "module": "data.drizzle-utils.insertRecord",
+        "inputs": {
+          "params": {
+            "tableName": "tweet_replies",
+            "data": {
+              "original_tweet_id": "{{selectedTweet.tweet_id}}",
+              "original_tweet_text": "{{selectedTweet.text}}",
+              "original_tweet_author": "{{selectedTweet.user_screen_name}}",
+              "our_reply_text": "{{aiReply.content}}",
+              "our_reply_tweet_id": "{{tweetResponse.data.id}}",
+              "status": "posted",
+              "replied_at": "{{$now}}"
+            }
+          }
+        }
+        // Step 8: Save to database - table auto-creates from this structure
+      }
+    ]
+  },
+  "metadata": {
+    "requiresCredentials": ["rapidapi", "twitter_oauth", "openai"]
+  }
+}
+```
+
+**Key points:**
+- `queryWhereIn` checks existing records (returns `[]` if table doesn't exist)
+- `insertRecord` creates table dynamically from data structure
+- Column types inferred: TEXT (strings), INTEGER (numbers), TIMESTAMP (ISO dates)
+- Use `{{$now}}` for current timestamp (auto-converted to ISO string)
+- Table persists across workflow runs for deduplication
+- No schema migration needed - columns added automatically
+
+**IMPORTANT - Single Item Processing:**
+This example processes ONE tweet per run. Workflows don't support loops/iteration.
+To process multiple items:
+- Run workflow on schedule (processes first unhandled item each time)
+- Use separate workflow runs for bulk operations
+- For batch processing, use JavaScript to combine operations
+
+**Finding database modules:**
+```bash
+npx tsx scripts/search-modules.ts "database"
+npx tsx scripts/search-modules.ts "drizzle"
+```
+
+**Common use cases:**
+- Track processed items (tweets, emails, posts) to avoid duplicates
+- Store workflow results for analytics
+- Build custom tables per workflow without migrations
+- Query historical data in later workflow runs
+
+---
+
+## 6. JavaScript Data Transformation
+
+**Pattern:** Use JavaScript for complex filtering, mapping, and conditional logic
+
+**What this shows:** Using `utilities.javascript.execute` for custom data manipulation. Pass variables via `context`, write JavaScript code as string. Essential for filtering arrays, extracting properties, and conditional logic.
+
+**When to use:** Array operations, filtering, custom logic that utility modules don't cover
+
+```json
+{
+  "id": "filter-and-transform",
+  "module": "utilities.javascript.execute",
+  "inputs": {
+    "options": {
+      "code": "return items.filter(x => x.score > 50).map(x => ({ id: x.id, name: x.name.toUpperCase() }));",
+      "context": {
+        "items": "{{rawData}}"
+      }
+    }
+  },
+  "outputAs": "filtered"
+}
+```
+
+**Key points:**
+- `code`: JavaScript expression (must return a value)
+- `context`: Pass workflow variables as local variables
+- Always wrap in `"options": { ... }`
+- Access variables by name: `items.filter(...)` not `{{items}}`
+- Can use array methods: `.filter()`, `.map()`, `.find()`, `.reduce()`
+- Can access nested properties: `items[0].data.tweets`
+
+**Common patterns:**
+```javascript
+// Filter array
+"return items.filter(x => x.value > 100);"
+
+// Map/transform array
+"return tweets.map(t => ({ id: t.tweet_id, text: t.text }));"
+
+// Extract property from array
+"return tweets.map(t => t.id);"
+
+// Check if array empty
+"return items.length === 0 ? 'No results' : 'Found items';"
+
+// Combine multiple arrays
+"return [...array1, ...array2];"
+
+// Get first item
+"return items[0];"
+```
 
 ---
 

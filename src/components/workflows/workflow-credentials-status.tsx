@@ -35,6 +35,7 @@ interface CredentialStatus {
   accounts: OAuthAccount[];
   keys: ApiKey[];
   preferredType?: 'oauth' | 'api_key'; // For 'both' and 'optional' types
+  oauthPlatform?: string; // Mapped OAuth endpoint name (e.g., 'twitter' for 'twitter-oauth')
 }
 
 interface WorkflowCredentialsStatusProps {
@@ -81,6 +82,17 @@ export function WorkflowCredentialsStatus({ workflowId }: WorkflowCredentialsSta
 
   useEffect(() => {
     fetchCredentials();
+
+    // Listen for OAuth success messages from popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type?.endsWith('-auth-success')) {
+        // Refresh credentials when OAuth completes
+        fetchCredentials();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, [fetchCredentials]);
 
   const handleCredentialSelect = useCallback((platform: string, credentialId: string) => {
@@ -92,16 +104,19 @@ export function WorkflowCredentialsStatus({ workflowId }: WorkflowCredentialsSta
     });
   }, [workflowId]);
 
-  const handleOAuthConnect = (platform: string) => {
+  const handleOAuthConnect = (cred: CredentialStatus) => {
     // Open OAuth popup
     const width = 600;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
 
+    // Use oauthPlatform if available (for mapped platforms like twitter-oauth -> twitter)
+    const authPlatform = cred.oauthPlatform || cred.platform;
+
     window.open(
-      `/api/auth/${platform}/authorize`,
-      `${platform}-auth`,
+      `/api/auth/${authPlatform}/authorize`,
+      `${authPlatform}-auth`,
       `width=${width},height=${height},left=${left},top=${top}`
     );
   };
@@ -197,7 +212,7 @@ export function WorkflowCredentialsStatus({ workflowId }: WorkflowCredentialsSta
                       size="sm"
                       variant="outline"
                       className="h-6 px-2 text-xs flex-shrink-0 transition-all duration-200 hover:scale-105 active:scale-95"
-                      onClick={() => handleOAuthConnect(cred.platform)}
+                      onClick={() => handleOAuthConnect(cred)}
                     >
                       <ExternalLink className="h-3 w-3 mr-1" />
                       OAuth
@@ -240,7 +255,7 @@ export function WorkflowCredentialsStatus({ workflowId }: WorkflowCredentialsSta
                     size="sm"
                     variant={preferred === 'oauth' ? 'default' : 'outline'}
                     className="h-6 px-2 text-xs flex-shrink-0 transition-all duration-200 hover:scale-105 active:scale-95"
-                    onClick={() => handleOAuthConnect(cred.platform)}
+                    onClick={() => handleOAuthConnect(cred)}
                   >
                     <ExternalLink className="h-3 w-3 mr-1" />
                     OAuth
@@ -296,7 +311,7 @@ export function WorkflowCredentialsStatus({ workflowId }: WorkflowCredentialsSta
                     size="sm"
                     variant="outline"
                     className="h-6 px-2 text-xs flex-shrink-0 transition-all duration-200 hover:scale-105 active:scale-95 group"
-                    onClick={() => handleOAuthConnect(cred.platform)}
+                    onClick={() => handleOAuthConnect(cred)}
                   >
                     <ExternalLink className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                     Add
@@ -359,7 +374,7 @@ export function WorkflowCredentialsStatus({ workflowId }: WorkflowCredentialsSta
                   size="sm"
                   variant="outline"
                   className="h-6 px-2 text-xs flex-shrink-0 transition-all duration-200 hover:scale-105 active:scale-95 group"
-                  onClick={() => handleOAuthConnect(cred.platform)}
+                  onClick={() => handleOAuthConnect(cred)}
                 >
                   <ExternalLink className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   Connect

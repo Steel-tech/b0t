@@ -24,7 +24,7 @@ export interface ModuleCategory {
 export function getModuleRegistry(): ModuleCategory[] {
   return [
     {
-      name: 'Ai',
+      name: 'ai',
       modules: [
         {
           name: 'ai-sdk',
@@ -459,7 +459,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Business',
+      name: 'business',
       modules: [
         {
           name: 'docusign',
@@ -1009,7 +1009,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Communication',
+      name: 'communication',
       modules: [
         {
           name: 'discord',
@@ -1464,7 +1464,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Content',
+      name: 'content',
       modules: [
         {
           name: 'bannerbear',
@@ -1819,7 +1819,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Data',
+      name: 'data',
       modules: [
         {
           name: 'airtable',
@@ -1953,6 +1953,42 @@ export function getModuleRegistry(): ModuleCategory[] {
               name: 'getOne',
               description: "Execute getOne",
               signature: 'getOne(params)',
+            },
+          ],
+        },
+        {
+          name: 'drizzle-utils',
+          functions: [
+            {
+              name: 'queryWhereIn',
+              description: "Drizzle Utils Module",
+              signature: 'queryWhereIn(params)',
+              example: "// Check which tweet IDs have already been replied to\nconst repliedIds = await queryWhereIn({\n  tableName: 'tweet_replies',\n  column: 'original_tweet_id',\n  values: ['123', '456', '789'],\n  selectColumn: 'original_tweet_id'\n});\n// Returns: ['123', '456'] (if those were found)",
+            },
+            {
+              name: 'insertRecord',
+              description: "Insert a single record into a table",
+              signature: 'insertRecord(params)',
+            },
+            {
+              name: 'insertRecords',
+              description: "Insert multiple records into a table (bulk insert)",
+              signature: 'insertRecords(params)',
+            },
+            {
+              name: 'updateRecord',
+              description: "Update a record by ID",
+              signature: 'updateRecord(params)',
+            },
+            {
+              name: 'deleteRecord',
+              description: "Delete a record by ID",
+              signature: 'deleteRecord(params)',
+            },
+            {
+              name: 'queryRecords',
+              description: "Query records with a simple WHERE clause",
+              signature: 'queryRecords(params)',
             },
           ],
         },
@@ -2284,7 +2320,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Dataprocessing',
+      name: 'dataprocessing',
       modules: [
         {
           name: 'bigquery',
@@ -2554,7 +2590,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Devtools',
+      name: 'devtools',
       modules: [
         {
           name: 'circleci',
@@ -3029,7 +3065,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Ecommerce',
+      name: 'ecommerce',
       modules: [
         {
           name: 'amazon-sp',
@@ -3419,7 +3455,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'External Apis',
+      name: 'external-apis',
       modules: [
         {
           name: 'rapidapi-newsapi',
@@ -3476,7 +3512,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Leads',
+      name: 'leads',
       modules: [
         {
           name: 'apify',
@@ -3826,7 +3862,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Payments',
+      name: 'payments',
       modules: [
         {
           name: 'stripe',
@@ -3886,7 +3922,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Productivity',
+      name: 'productivity',
       modules: [
         {
           name: 'calendar',
@@ -4051,7 +4087,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Social',
+      name: 'social',
       modules: [
         {
           name: 'instagram',
@@ -4261,7 +4297,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Utilities',
+      name: 'utilities',
       modules: [
         {
           name: 'aggregation',
@@ -6544,7 +6580,7 @@ export function getModuleRegistry(): ModuleCategory[] {
       ],
     },
     {
-      name: 'Video',
+      name: 'video',
       modules: [
         {
           name: 'cloudinary',

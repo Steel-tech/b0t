@@ -48,6 +48,7 @@ const PLATFORM_CAPABILITIES: Record<string, PlatformCapability> = {
   'xml': { category: 'none' },
   'pdf': { category: 'none' },
   'image': { category: 'none' },
+  'drizzle-utils': { category: 'none' }, // Internal database module (uses DATABASE_URL)
 
   // ============================================
   // OPTIONAL CREDENTIALS
@@ -111,6 +112,16 @@ const PLATFORM_CAPABILITIES: Record<string, PlatformCapability> = {
       // OAuth 1.0a functions
       'getUserTimeline': 'api_key',
       'searchTweets': 'api_key',
+    },
+  },
+
+  // Twitter OAuth 2.0 User Context (OAuth only)
+  'twitter-oauth': {
+    category: 'oauth',
+    functionRequirements: {
+      'createTweet': 'oauth',
+      'replyToTweet': 'oauth',
+      'createThread': 'oauth',
     },
   },
 

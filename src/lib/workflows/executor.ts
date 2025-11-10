@@ -105,9 +105,10 @@ export async function executeWorkflow(
           id: userId,
           ...userCredentials, // e.g., { openai: "sk-...", stripe: "sk_test_..." }
         },
+        credential: userCredentials, // Add credential namespace for {{credential.platform}} syntax
         trigger: triggerData || {},
         // Also add credentials to top-level for convenience
-        // Allows both {{user.youtube_apikey}} and {{youtube_apikey}} syntax
+        // Allows {{user.youtube_apikey}}, {{credential.youtube_apikey}}, and {{youtube_apikey}} syntax
         ...userCredentials,
       },
       workflowId,
@@ -684,7 +685,7 @@ async function loadUserCredentials(userId: string): Promise<Record<string, strin
     // Maps module names (from workflow paths) to all possible credential IDs
     const platformAliases: Record<string, string[]> = {
       'youtube': ['youtube_apikey', 'youtube_api_key', 'youtube'],
-      'twitter': ['twitter_oauth2', 'twitter'],
+      'twitter': ['twitter_oauth2', 'twitter_oauth', 'twitter'],
       'github': ['github_oauth', 'github'],
       'google-sheets': ['googlesheets', 'googlesheets_oauth'],
       'googlesheets': ['googlesheets', 'googlesheets_oauth'],

@@ -361,14 +361,10 @@ function formatRegistry(registry: Map<string, ModuleInfo[]>): string {
   output += `  return [\n`;
 
   for (const [categoryName, modules] of categories) {
-    // Capitalize category name
-    const displayName = categoryName
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-
+    // Use filesystem name (with hyphens) for consistency with module paths
+    // Workflows reference modules as: category-name.module-name.functionName
     output += `    {\n`;
-    output += `      name: '${displayName}',\n`;
+    output += `      name: '${categoryName}',\n`;
     output += `      modules: [\n`;
 
     for (const mod of modules) {

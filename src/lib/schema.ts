@@ -221,6 +221,36 @@ export const userCredentialsTable = pgTable('user_credentials', {
 }));
 
 // ============================================
+// WORKFLOW DATA TRACKING TABLES
+// ============================================
+
+// Tweet replies tracking table (for reply-to-tweets workflow deduplication)
+export const tweetRepliesTable = pgTable('tweet_replies', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 255 }),
+  organizationId: varchar('organization_id', { length: 255 }),
+  originalTweetId: varchar('original_tweet_id', { length: 255 }).notNull(),
+  originalTweetText: text('original_tweet_text').notNull(),
+  originalTweetAuthor: varchar('original_tweet_author', { length: 255 }).notNull(),
+  originalTweetAuthorName: varchar('original_tweet_author_name', { length: 255 }),
+  originalTweetLikes: integer('original_tweet_likes').notNull().default(0),
+  originalTweetRetweets: integer('original_tweet_retweets').notNull().default(0),
+  originalTweetReplies: integer('original_tweet_replies').notNull().default(0),
+  originalTweetViews: integer('original_tweet_views').notNull().default(0),
+  ourReplyText: text('our_reply_text').notNull(),
+  ourReplyTweetId: varchar('our_reply_tweet_id', { length: 255 }),
+  status: varchar('status', { length: 50 }).notNull().default('pending'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  repliedAt: timestamp('replied_at'),
+}, (table) => ({
+  originalTweetIdIdx: index('tweet_replies_original_tweet_id_idx').on(table.originalTweetId),
+  userIdIdx: index('tweet_replies_user_id_idx').on(table.userId),
+  organizationIdIdx: index('tweet_replies_organization_id_idx').on(table.organizationId),
+  statusIdx: index('tweet_replies_status_idx').on(table.status),
+  createdAtIdx: index('tweet_replies_created_at_idx').on(table.createdAt),
+}));
+
+// ============================================
 // TYPE EXPORTS
 // ============================================
 
@@ -246,3 +276,5 @@ export type WorkflowRun = typeof workflowRunsTable.$inferSelect;
 export type NewWorkflowRun = typeof workflowRunsTable.$inferInsert;
 export type UserCredential = typeof userCredentialsTable.$inferSelect;
 export type NewUserCredential = typeof userCredentialsTable.$inferInsert;
+export type TweetReply = typeof tweetRepliesTable.$inferSelect;
+export type NewTweetReply = typeof tweetRepliesTable.$inferInsert;

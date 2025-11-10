@@ -97,29 +97,24 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
   // ============================================
   // SOCIAL MEDIA
   // ============================================
-  twitter: {
-    id: 'twitter',
-    name: 'Twitter (OAuth 1.0a)',
-    category: 'Social Media',
-    fields: [
-      { key: 'api_key', label: 'API Key', type: 'password', required: true },
-      { key: 'api_secret', label: 'API Secret', type: 'password', required: true },
-      { key: 'access_token', label: 'Access Token', type: 'password', required: true },
-      { key: 'access_secret', label: 'Access Token Secret', type: 'password', required: true }
-    ]
-  },
-
-  twitter_oauth2: {
-    id: 'twitter_oauth2',
-    name: 'Twitter (OAuth 2.0)',
+  twitter_oauth2_app: {
+    id: 'twitter_oauth2_app',
+    name: 'Twitter OAuth 2.0 App Credentials',
     category: 'Social Media',
     fields: [
       {
-        key: 'access_token',
-        label: 'Bearer Token',
+        key: 'client_id',
+        label: 'Client ID',
+        type: 'text',
+        required: true,
+        description: 'OAuth 2.0 Client ID from Twitter Developer Portal'
+      },
+      {
+        key: 'client_secret',
+        label: 'Client Secret',
         type: 'password',
         required: true,
-        description: 'OAuth 2.0 Bearer Token for user-level access'
+        description: 'OAuth 2.0 Client Secret from Twitter Developer Portal'
       }
     ]
   },
