@@ -45,6 +45,7 @@ export default auth((req) => {
     '/api/workflows/import-test',  // Test endpoint for development
     '/api/workflows/execute-test', // Test endpoint for development
     '/api/workflows/build-from-plan', // Agent workflow builder (no auth for local agent)
+    '/api/modules/search',         // Module search for agent (no auth for local agent)
   ];
 
   // Check if the current path is public or is the root path

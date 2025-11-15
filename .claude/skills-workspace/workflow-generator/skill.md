@@ -117,7 +117,7 @@ steps:
 Search for modules you need:
 
 ```bash
-npm run modules:search <keyword> -- --limit 5
+curl http://localhost:3123/api/modules/search?q= <keyword> -- --limit 5
 ```
 
 Use the `path` from search results as the `module` in your plan.
@@ -149,7 +149,7 @@ Use the `path` from search results as the `module` in your plan.
 **Social Media (Requires Platform Credentials):**
 - `social.twitter.*`, `social.reddit.*`, `social.linkedin.*`, etc.
 
-Use `npm run modules:search <keyword>` to find specific modules.
+Use `curl http://localhost:3123/api/modules/search?q= <keyword>` to find specific modules.
 
 ### Example Plans
 
@@ -353,7 +353,7 @@ Workflow NOT imported - fix errors first
 
 1. **ALWAYS ask questions first** - Use asking the user directly in chat
 2. **ALWAYS use workflow:build** - Never manually write JSON
-3. **Search for modules** - Use `npm run modules:search` to find module paths
+3. **Search for modules** - Use `curl http://localhost:3123/api/modules/search?q=` to find module paths
 4. **Create YAML plan** - Simple, readable format
 5. **Auto-wrapping works** - Don't wrap params/options manually, script does it
 6. **Expect zero errors** - Plan builder validates everything
@@ -531,7 +531,7 @@ returnValue: "{{complexObject.posts}}"  # Returns just the array
 
 ## Tips
 
-- **Module search**: `npm run modules:search <keyword>` to find module paths
+- **Module search**: `curl http://localhost:3123/api/modules/search?q= <keyword>` to find module paths
 - **Rest parameters**: Use `array-utils.*` versions, not `math.*` for max/min
 - **Wrapper modules**: AI SDK, drizzle-utils, JavaScript modules - automatically wrapped
 - **JavaScript code**: Use `javascript.execute` for custom context, `filterArray/mapArray` for simple operations
