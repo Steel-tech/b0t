@@ -7,6 +7,13 @@ import { ChatContainer } from "./ChatContainer";
 export function ChatFAB() {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Only show in development (Claude Agent SDK requires local filesystem)
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
+  if (!isDevelopment) {
+    return null;
+  }
+
   return (
     <>
       {!isOpen && (
