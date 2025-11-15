@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { planPath } = body;
+    const { planPath, autoFix = true } = body; // Auto-fix enabled by default
 
     if (!planPath || typeof planPath !== 'string') {
       return new Response('planPath is required', { status: 400 });
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     try {
       let output = '';
       try {
-        output = execSync(`npx tsx ${scriptPath} ${fullPlanPath} --skip-dry-run --skip-import`, {
+        const autoFixFlag = autoFix ? '--auto-fix' : '';
+        output = execSync(`npx tsx ${scriptPath} ${autoFixFlag} ${fullPlanPath} --skip-dry-run --skip-import`, {
           cwd: process.cwd(),
           encoding: 'utf-8',
           timeout: 60000, // 60 second timeout

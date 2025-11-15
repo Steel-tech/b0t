@@ -30,6 +30,7 @@
     "workflow:create": "tsx scripts/create-workflow.ts",
     "workflow:add-step": "tsx scripts/add-workflow-step.ts",
     "workflow:build": "tsx scripts/build-workflow-from-plan.ts",
+    "workflow:fix": "tsx scripts/auto-fix-workflow-plan.ts",
     "workflow:dry-run": "tsx scripts/dry-run-workflow.ts",
     "workflow:import": "tsx scripts/import-workflow.ts",
     "workflow:list": "tsx scripts/list-workflows.ts",

@@ -284,8 +284,21 @@ function generateFilename(name: string): string {
 /**
  * Build workflow from plan
  */
-async function buildWorkflowFromPlan(planFile: string): Promise<void> {
+async function buildWorkflowFromPlan(planFile: string, autoFix: boolean = true): Promise<void> {
   console.log(`\n🔨 Building workflow from plan: ${planFile}\n`);
+
+  // Auto-fix by default (disable with --no-auto-fix)
+  if (autoFix) {
+    console.log('🔧 Running auto-fixer...\n');
+    try {
+      execSync(`npx tsx scripts/auto-fix-workflow-plan.ts --in-place "${planFile}"`, {
+        stdio: 'inherit',
+      });
+      console.log('\n✅ Auto-fix completed\n');
+    } catch {
+      console.error('\n⚠️  Auto-fix had warnings but continuing...\n');
+    }
+  }
 
   // Read and parse plan
   const planPath = resolve(process.cwd(), planFile);
@@ -496,6 +509,11 @@ Usage:
   npm run workflow:build <plan-file.yaml>
   npm run workflow:build <plan-file.json>
 
+Flags:
+  --no-auto-fix    Disable automatic error fixing (auto-fix runs by default)
+  --skip-dry-run   Skip dry-run test
+  --skip-import    Skip database import (just create JSON)
+
 Plan Format (YAML):
   name: Workflow Name
   description: Optional description
@@ -525,14 +543,26 @@ Example:
 
 Benefits:
   ✅ One YAML file → Complete workflow
+  ✅ Auto-fixes common errors (parameter names, module aliases, etc.)
   ✅ All validation automatic
-  ✅ Zero parameter errors
   ✅ Imports to database automatically
+
+Note: Auto-fix runs automatically to correct common mistakes.
+      Use --no-auto-fix to disable if needed.
   `);
   process.exit(0);
 }
 
-buildWorkflowFromPlan(args[0]).catch((error) => {
+const noAutoFix = args.includes('--no-auto-fix');
+const autoFix = !noAutoFix; // Auto-fix enabled by default
+const planFile = args.find(arg => !arg.startsWith('--'));
+
+if (!planFile) {
+  console.error('Error: No plan file specified');
+  process.exit(1);
+}
+
+buildWorkflowFromPlan(planFile, autoFix).catch((error) => {
   console.error('\n❌ Fatal error:', error.message);
   process.exit(1);
 });
